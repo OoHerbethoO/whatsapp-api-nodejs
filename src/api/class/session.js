@@ -27,6 +27,7 @@ class Session {
                             webhook: chat.config.allowWebhook,
                             webhookUrl: chat.config.customWebhook,
                         }
+
                         if (err) throw err
                         const webhook = chat.config.allowWebhook
                             ? chat.config.allowWebhook
@@ -34,10 +35,14 @@ class Session {
                         const webhookUrl = chat.config.customWebhook
                             ? chat.config.customWebhook
                             : config.webhookUrl
+
+                        const chatwootConfig = chat.config.chatwoot
+
                         const instance = new WhatsAppInstance(
                             key,
                             webhook,
-                            webhookUrl
+                            webhookUrl,
+                            chatwootConfig
                         )
                         await instance.init()
                         WhatsAppInstances[key] = instance

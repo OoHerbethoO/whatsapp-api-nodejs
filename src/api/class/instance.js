@@ -37,15 +37,22 @@ class WhatsAppInstance {
         messages: [],
         qrRetry: 0,
         customWebhook: '',
+        chatwoot: {},
     }
 
     axiosInstance = axios.create({
         baseURL: config.webhookUrl,
     })
 
-    constructor(key, allowWebhook, webhook) {
+    axiosChatwoot = axios.create({
+        baseURL: config.chatwoot.baseURL,
+    })
+
+    constructor(key, allowWebhook, webhook, chatwootConfig) {
         this.key = key ? key : uuidv4()
         this.instance.customWebhook = this.webhook ? this.webhook : webhook
+        this.instance.chatwoot = chatwootConfig
+
         this.allowWebhook = config.webhookEnabled
             ? config.webhookEnabled
             : allowWebhook
@@ -54,6 +61,20 @@ class WhatsAppInstance {
             this.instance.customWebhook = webhook
             this.axiosInstance = axios.create({
                 baseURL: webhook,
+            })
+        }
+
+        if (
+            this.chatwootConfig &&
+            this.chatwootConfig.enable &&
+            this.instance.baseURL !== null
+        ) {
+            this.axiosChatwoot = axios.create({
+                baseURL: chatwootConfig.baseURL,
+                headers: {
+                    api_access_token: chatwootConfig.token,
+                    'Content-Type': 'application/json;charset=utf-8',
+                },
             })
         }
     }
@@ -66,6 +87,104 @@ class WhatsAppInstance {
                 body,
             })
             .catch(() => {})
+    }
+
+    async SendChatwoot(type, message) {
+        if (this.instance.chatwoot && !this.instance.chatwoot.enable) return
+        if (message.key.fromMe || message.key.remoteJid.indexOf('@g.us') > 0)
+            return
+        console.log('SendChatwoot', this.axiosChatwoot.getUri)
+        let contact = await this.createContact(message)
+        console.log('CONTACT', contact)
+        return
+        let conversation = await this.createConversation(
+            contact,
+            message.chatId.split('@')[0]
+        )
+        let body = {
+            content: message.body,
+            message_type: 'incoming',
+        }
+        const { data } = await this.axiosChatwoot.post(
+            `api/v1/accounts/${this.chatwootConfig.account_id}/conversations/${conversation.id}/messages`,
+            body
+        )
+
+        return data
+    }
+
+    async findContact(query) {
+        try {
+            const { data } = await this.axiosChatwoot.get(
+                `api/v1/accounts/${this.chatwootConfig.account_id}/contacts/search/?q=${query}`
+            )
+            return data
+        } catch (e) {
+            console.log(e)
+            return null
+        }
+    }
+
+    async createContact(message) {
+        let body = {
+            inbox_id: this.chatwootConfig.inbox_id,
+            name: message.isMyContact
+                ? message.formattedName
+                : message.pushName || message.formattedName,
+            phone_number: message.key.remoteJid.split('@')[0],
+        }
+
+        body.phone_number = `+${body.phone_number}`
+        var contact = await this.findContact(body.phone_number.replace('+', ''))
+        if (contact && contact.meta.count > 0) return contact.payload[0]
+
+        try {
+            const data = await this.axiosChatwoot.post(
+                `api/v1/accounts/${this.chatwootConfig.account_id}/contacts`,
+                body
+            )
+            return data.data.payload.contact
+        } catch (e) {
+            console.log(e)
+            return e
+        }
+    }
+
+    async findConversation(contact) {
+        try {
+            const { data } = await this.axiosChatwoot.get(
+                `api/v1/accounts/${this.chatwootConfig.account_id}/conversations?inbox_id=${this.chatwootConfig.inbox_id}&status=all`
+            )
+            return data.data.payload.find(
+                (e) => e.meta.sender.id == contact.id && e.status != 'resolved'
+            )
+        } catch (e) {
+            console.log(e)
+            return null
+        }
+    }
+
+    async createConversation(contact, source_id) {
+        var conversation = await this.findConversation(contact)
+        if (conversation) return conversation
+
+        let body = {
+            source_id: source_id,
+            inbox_id: this.chatwootConfig.inbox_id,
+            contact_id: contact.id,
+            status: 'open',
+        }
+
+        try {
+            const { data } = await this.axiosChatwoot.post(
+                `api/v1/accounts/${this.chatwootConfig.account_id}/conversations`,
+                body
+            )
+            return data
+        } catch (e) {
+            console.log(e)
+            return null
+        }
     }
 
     async init() {
@@ -111,6 +230,7 @@ class WhatsAppInstance {
                 const chatConfig = {
                     allowWebhook: this.allowWebhook ? true : false,
                     customWebhook: this.instance.customWebhook,
+                    chatwoot: this.instance.chatwoot,
                 }
                 if (config.mongoose.enabled) {
                     let alreadyThere = await Chat.findOne({
@@ -270,7 +390,10 @@ class WhatsAppInstance {
                     }
                 }
 
-                await this.SendWebhook('message', webhookData)
+                try {
+                    await this.SendChatwoot('message', webhookData)
+                    await this.SendWebhook('message', webhookData)
+                } catch (_) {}
             })
         })
 
@@ -427,12 +550,13 @@ class WhatsAppInstance {
     async sendLocation(to, data) {
         await this.verifyId(this.getWhatsAppId(to))
         const result = await this.instance.sock?.sendMessage(
-            this.getWhatsAppId(to), {
-            location: {
-                degreesLatitude: data.latitude,
-                degreesLongitude: data.longitude
+            this.getWhatsAppId(to),
+            {
+                location: {
+                    degreesLatitude: data.latitude,
+                    degreesLongitude: data.longitude,
+                },
             }
-        }
         )
         return result
     }

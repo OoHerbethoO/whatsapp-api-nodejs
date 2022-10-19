@@ -4,7 +4,7 @@ const keyVerify = require('../middlewares/keyCheck')
 const loginVerify = require('../middlewares/loginCheck')
 
 const router = express.Router()
-router.route('/init').get(controller.init)
+router.route('/init').post(controller.init)
 router.route('/qr').get(keyVerify, controller.qr)
 router.route('/qrbase64').get(keyVerify, controller.qrbase64)
 router.route('/info').get(keyVerify, controller.info)

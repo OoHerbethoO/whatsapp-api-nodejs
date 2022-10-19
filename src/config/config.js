@@ -69,4 +69,11 @@ module.exports = {
     webhookUrl: WEBHOOK_URL,
     webhookBase64: WEBHOOK_BASE64,
     protectRoutes: PROTECT_ROUTES,
+    chatwoot: {
+        enable: false,
+        baseURL: null,
+        token: null,
+        inbox_id: null,
+        account_id: null,
+    },
 }

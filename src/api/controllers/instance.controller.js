@@ -5,26 +5,42 @@ const config = require('../../config/config')
 const { Session } = require('../class/session')
 
 exports.init = async (req, res) => {
-    const key = req.query.key
-    const webhook = !req.query.webhook ? false : req.query.webhook
-    const webhookUrl = !req.query.webhookUrl ? null : req.query.webhookUrl
-    const appUrl = config.appUrl || req.protocol + '://' + req.headers.host
-    const instance = new WhatsAppInstance(key, webhook, webhookUrl)
-    const data = await instance.init()
-    WhatsAppInstances[data.key] = instance
-    res.json({
-        error: false,
-        message: 'Initializing successfully',
-        key: data.key,
-        webhook: {
-            enabled: webhook,
-            webhookUrl: webhookUrl,
-        },
-        qrcode: {
-            url: appUrl + '/instance/qr?key=' + data.key,
-        },
-        browser: config.browser,
-    })
+    try {
+        const key = req.body.key
+        const webhook = !req.body.webhook ? false : req.body.webhook
+        const webhookUrl = !req.body.webhookUrl ? null : req.body.webhookUrl
+        const appUrl = config.appUrl || req.protocol + '://' + req.headers.host
+        const chatwootConfig = config.chatwoot
+        chatwootConfig.enable = !req.body.chatwoot?.enable ? false : req.body.chatwoot.enable
+        chatwootConfig.baseURL = !req.body.chatwoot?.baseURL ? null : req.body.chatwoot.baseURL
+        chatwootConfig.token = !req.body.chatwoot?.token ? null : req.body.chatwoot.token
+        chatwootConfig.inbox_id = !req.body.chatwoot?.inbox_id ? null : req.body.chatwoot.inbox_id
+        chatwootConfig.account_id = !req.body.chatwoot?.account_id ? null : req.body.chatwoot.account_id
+        
+        const instance = new WhatsAppInstance(key, webhook, webhookUrl, chatwootConfig)
+        const data = await instance.init()
+        WhatsAppInstances[data.key] = instance
+        res.json({
+            error: false,
+            message: 'Initializing successfully',
+            key: data.key,
+            webhook: {
+                enabled: webhook,
+                webhookUrl: webhookUrl,
+            },
+            chatwoot: { ...chatwootConfig },
+            qrcode: {
+                url: appUrl + '/instance/qr?key=' + data.key,
+            },
+            browser: config.browser,
+        })
+    } catch(err) {
+        console.log(err)
+        res.json({
+            error: true,
+            message: 'Initializing failed'
+        });
+    }
 }
 
 exports.qr = async (req, res) => {
