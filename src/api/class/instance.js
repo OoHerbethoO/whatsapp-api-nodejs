@@ -65,9 +65,9 @@ class WhatsAppInstance {
         }
 
         if (
-            this.chatwootConfig &&
-            this.chatwootConfig.enable &&
-            this.instance.baseURL !== null
+            chatwootConfig &&
+            chatwootConfig.enable &&
+            chatwootConfig.baseURL !== null
         ) {
             this.axiosChatwoot = axios.create({
                 baseURL: chatwootConfig.baseURL,
@@ -89,21 +89,35 @@ class WhatsAppInstance {
             .catch(() => {})
     }
 
-    async SendChatwoot(type, message) {
+    async sendChatwoot(type, message) {
         if (this.instance.chatwoot == null || !this.instance.chatwoot.enable) return
+            // console.log(message.message)
+
+        let messageText = ""
+        if (message.message && message.message.extendedTextMessage != undefined)
+            messageText = message.message.extendedTextMessage.text
+        else if (
+            message.message &&
+            message.message.buttonsResponseMessage != undefined
+        )
+            messageText = message.message.buttonsResponseMessage.selectedDisplayText
+        else if (
+            message.message &&
+            message.message.listResponseMessage != undefined
+        )
+            messageText = message.message.listResponseMessage.title
+
         if (message.key.fromMe || message.key.remoteJid.indexOf('@g.us') > 0)
             return
-
-        console.log('SendChatwoot', this.instance.chatwoot)
         let contact = await this.createContact(message)
-        console.log('CONTACT', contact)
-        return
+        
         let conversation = await this.createConversation(
             contact,
-            message.chatId.split('@')[0]
+            message.key.remoteJid.split('@')[0]
         )
+
         let body = {
-            content: message.body,
+            content: messageText,
             message_type: 'incoming',
         }
         const { data } = await this.axiosChatwoot.post(
@@ -136,6 +150,8 @@ class WhatsAppInstance {
         }
 
         body.phone_number = `+${body.phone_number}`
+        body.source_id = body.phone_number;
+        
         var contact = await this.findContact(body.phone_number.replace('+', ''))
         if (contact && contact.meta.count > 0) return contact.payload[0]
 
@@ -391,8 +407,13 @@ class WhatsAppInstance {
                     }
                 }
 
-                    await this.SendWebhook('message', webhookData)
-                    await this.SendChatwoot('message', webhookData)
+                let dataMessage = webhookData
+
+                if (dataMessage.ephemeralMessage != undefined)
+                    dataMessage = dataMessage.ephemeralMessage
+
+                await this.SendWebhook('message', webhookData)
+                await this.sendChatwoot('message', dataMessage)
             })
         })
 
