@@ -90,10 +90,11 @@ class WhatsAppInstance {
     }
 
     async SendChatwoot(type, message) {
-        if (this.instance.chatwoot && !this.instance.chatwoot.enable) return
+        if (this.instance.chatwoot == null || !this.instance.chatwoot.enable) return
         if (message.key.fromMe || message.key.remoteJid.indexOf('@g.us') > 0)
             return
-        console.log('SendChatwoot', this.axiosChatwoot.getUri)
+
+        console.log('SendChatwoot', this.instance.chatwoot)
         let contact = await this.createContact(message)
         console.log('CONTACT', contact)
         return
@@ -106,7 +107,7 @@ class WhatsAppInstance {
             message_type: 'incoming',
         }
         const { data } = await this.axiosChatwoot.post(
-            `api/v1/accounts/${this.chatwootConfig.account_id}/conversations/${conversation.id}/messages`,
+            `api/v1/accounts/${this.instance.chatwoot.account_id}/conversations/${conversation.id}/messages`,
             body
         )
 
@@ -116,7 +117,7 @@ class WhatsAppInstance {
     async findContact(query) {
         try {
             const { data } = await this.axiosChatwoot.get(
-                `api/v1/accounts/${this.chatwootConfig.account_id}/contacts/search/?q=${query}`
+                `api/v1/accounts/${this.instance.chatwoot.account_id}/contacts/search/?q=${query}`
             )
             return data
         } catch (e) {
@@ -127,7 +128,7 @@ class WhatsAppInstance {
 
     async createContact(message) {
         let body = {
-            inbox_id: this.chatwootConfig.inbox_id,
+            inbox_id: this.instance.chatwoot.inbox_id,
             name: message.isMyContact
                 ? message.formattedName
                 : message.pushName || message.formattedName,
@@ -140,7 +141,7 @@ class WhatsAppInstance {
 
         try {
             const data = await this.axiosChatwoot.post(
-                `api/v1/accounts/${this.chatwootConfig.account_id}/contacts`,
+                `api/v1/accounts/${this.instance.chatwoot.account_id}/contacts`,
                 body
             )
             return data.data.payload.contact
@@ -153,7 +154,7 @@ class WhatsAppInstance {
     async findConversation(contact) {
         try {
             const { data } = await this.axiosChatwoot.get(
-                `api/v1/accounts/${this.chatwootConfig.account_id}/conversations?inbox_id=${this.chatwootConfig.inbox_id}&status=all`
+                `api/v1/accounts/${this.instance.chatwoot.account_id}/conversations?inbox_id=${this.instance.chatwoot.inbox_id}&status=all`
             )
             return data.data.payload.find(
                 (e) => e.meta.sender.id == contact.id && e.status != 'resolved'
@@ -170,14 +171,14 @@ class WhatsAppInstance {
 
         let body = {
             source_id: source_id,
-            inbox_id: this.chatwootConfig.inbox_id,
+            inbox_id: this.instance.chatwoot.inbox_id,
             contact_id: contact.id,
             status: 'open',
         }
 
         try {
             const { data } = await this.axiosChatwoot.post(
-                `api/v1/accounts/${this.chatwootConfig.account_id}/conversations`,
+                `api/v1/accounts/${this.instance.chatwoot.account_id}/conversations`,
                 body
             )
             return data
@@ -390,10 +391,8 @@ class WhatsAppInstance {
                     }
                 }
 
-                try {
-                    await this.SendChatwoot('message', webhookData)
                     await this.SendWebhook('message', webhookData)
-                } catch (_) {}
+                    await this.SendChatwoot('message', webhookData)
             })
         })
 
