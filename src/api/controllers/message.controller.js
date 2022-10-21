@@ -1,6 +1,7 @@
 exports.Chatwoot = async (req, res) => {
     const chatwoot = {
         content: req.body.content,
+        content_type: req.body.content_type,
         number: req.body.conversation?.meta.sender.phone_number.replace('+', ''),
         event: req.body.event
     }
