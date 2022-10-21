@@ -1,3 +1,21 @@
+exports.Chatwoot = async (req, res) => {
+    const chatwoot = {
+        content: req.body.content,
+        number: req.body.conversation?.meta.sender.phone_number.replace('+', ''),
+        event: req.body.event
+    }
+
+    if(chatwoot.event != "message_created")
+        return res.status(200).json({ error: true })
+
+    const data = await WhatsAppInstances[req.query.key].sendTextMessage(
+        chatwoot.number,
+        chatwoot.content
+    )
+
+    return res.status(200).json({ error: false, data: data })
+}
+
 exports.Text = async (req, res) => {
     const data = await WhatsAppInstances[req.query.key].sendTextMessage(
         req.body.id,

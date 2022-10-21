@@ -8,6 +8,7 @@ const router = express.Router()
 const storage = multer.memoryStorage()
 const upload = multer({ storage: storage, inMemory: true }).single('file')
 
+router.route('/chatwoot').post(keyVerify, controller.Chatwoot)
 router.route('/text').post(keyVerify, loginVerify, controller.Text)
 router.route('/image').post(keyVerify, loginVerify, upload, controller.Image)
 router.route('/video').post(keyVerify, loginVerify, upload, controller.Video)
