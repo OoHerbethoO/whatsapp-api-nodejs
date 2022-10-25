@@ -102,8 +102,7 @@ class WhatsAppInstance {
 
     async SendQrWebhook(type, body) {
         if (!this.allowWebhook) return
-        if (!this.webhookQr) return
-
+        if (!this.instance.webhookQr) return
         this.axiosInstanceQr
             .post('', {
                 type,
@@ -305,7 +304,6 @@ class WhatsAppInstance {
                 QRCode.toDataURL(qr).then(async (url) => {
                     this.instance.qr = url
                     this.instance.qrRetry++
-                    await this.SendQrWebhook('qrcode', url)
                     if (this.instance.qrRetry >= config.instance.maxRetryQr) {
                         // close WebSocket connection
                         this.instance.sock.ws.close()
@@ -313,7 +311,7 @@ class WhatsAppInstance {
                         this.instance.sock.ev.removeAllListeners()
                         this.instance.qr = ' '
                         logger.info('socket connection terminated')
-                    }
+                    } else await this.SendQrWebhook('qrcode', url)
                 })
             }
         })
