@@ -35,6 +35,9 @@ class Session {
                         const webhookUrl = chat.config.customWebhook
                             ? chat.config.customWebhook
                             : config.webhookUrl
+                        const webhookQr = chat.config.webhookQr
+                            ? chat.config.webhookQr
+                            : config.webhookQr
 
                         const chatwootConfig = chat.config.chatwoot
 
@@ -42,6 +45,7 @@ class Session {
                             key,
                             webhook,
                             webhookUrl,
+                            webhookQr,
                             chatwootConfig
                         )
                         await instance.init()

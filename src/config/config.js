@@ -35,6 +35,10 @@ const WEBHOOK_ENABLED = !!(
 const WEBHOOK_URL =
     process.env.WEBHOOK_URL ||
     'https://webhook.site/d0122a66-18a3-432d-b63f-4772b190dd72'
+
+// Webhook QR URL
+const WEBHOOK_QR =
+    process.env.WEBHOOK_QR || ''
 // Receive message content in webhook (Base64 format)
 const WEBHOOK_BASE64 = !!(
     process.env.WEBHOOK_BASE64 && process.env.WEBHOOK_BASE64 === 'true'
@@ -67,6 +71,7 @@ module.exports = {
     },
     webhookEnabled: WEBHOOK_ENABLED,
     webhookUrl: WEBHOOK_URL,
+    webhookQr: WEBHOOK_QR,
     webhookBase64: WEBHOOK_BASE64,
     protectRoutes: PROTECT_ROUTES,
     chatwoot: {

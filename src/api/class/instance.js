@@ -29,6 +29,7 @@ class WhatsAppInstance {
     authState
     allowWebhook = undefined
     webhook = undefined
+    webhookQr = undefined
 
     instance = {
         key: this.key,
@@ -37,6 +38,7 @@ class WhatsAppInstance {
         messages: [],
         qrRetry: 0,
         customWebhook: '',
+        webhookQr: '',
         chatwoot: {},
     }
 
@@ -44,13 +46,18 @@ class WhatsAppInstance {
         baseURL: config.webhookUrl,
     })
 
+    axiosInstanceQr = axios.create({
+        baseURL: config.webhookQr,
+    })
+
     axiosChatwoot = axios.create({
         baseURL: config.chatwoot.baseURL,
     })
 
-    constructor(key, allowWebhook, webhook, chatwootConfig) {
+    constructor(key, allowWebhook, webhook, webhookQr, chatwootConfig) {
         this.key = key ? key : uuidv4()
         this.instance.customWebhook = this.webhook ? this.webhook : webhook
+        this.instance.webhookQr = this.webhookQr ? this.webhookQr : webhookQr
         this.instance.chatwoot = chatwootConfig
 
         this.allowWebhook = config.webhookEnabled
@@ -61,6 +68,10 @@ class WhatsAppInstance {
             this.instance.customWebhook = webhook
             this.axiosInstance = axios.create({
                 baseURL: webhook,
+            })
+
+            this.axiosInstanceQr = axios.create({
+                baseURL: webhookQr,
             })
         }
 
@@ -89,18 +100,32 @@ class WhatsAppInstance {
             .catch(() => {})
     }
 
-    async sendChatwoot(type, message) {
-        if (this.instance.chatwoot == null || !this.instance.chatwoot.enable) return
-            // console.log(message.message)
+    async SendQrWebhook(type, body) {
+        if (!this.allowWebhook) return
+        if (!this.webhookQr) return
 
-        let messageText = ""
+        this.axiosInstanceQr
+            .post('', {
+                type,
+                body,
+            })
+            .catch(() => {})
+    }
+
+    async sendChatwoot(type, message) {
+        if (this.instance.chatwoot == null || !this.instance.chatwoot.enable)
+            return
+        // console.log(message.message)
+
+        let messageText = ''
         if (message.message && message.message.extendedTextMessage != undefined)
             messageText = message.message.extendedTextMessage.text
         else if (
             message.message &&
             message.message.buttonsResponseMessage != undefined
         )
-            messageText = message.message.buttonsResponseMessage.selectedDisplayText
+            messageText =
+                message.message.buttonsResponseMessage.selectedDisplayText
         else if (
             message.message &&
             message.message.listResponseMessage != undefined
@@ -110,7 +135,7 @@ class WhatsAppInstance {
         if (message.key.fromMe || message.key.remoteJid.indexOf('@g.us') > 0)
             return
         let contact = await this.createContact(message)
-        
+
         let conversation = await this.createConversation(
             contact,
             message.key.remoteJid.split('@')[0]
@@ -150,8 +175,8 @@ class WhatsAppInstance {
         }
 
         body.phone_number = `+${body.phone_number}`
-        body.source_id = body.phone_number;
-        
+        body.source_id = body.phone_number
+
         var contact = await this.findContact(body.phone_number.replace('+', ''))
         if (contact && contact.meta.count > 0) return contact.payload[0]
 
@@ -247,6 +272,7 @@ class WhatsAppInstance {
                 const chatConfig = {
                     allowWebhook: this.allowWebhook ? true : false,
                     customWebhook: this.instance.customWebhook,
+                    webhookQr: this.instance.webhookQr,
                     chatwoot: this.instance.chatwoot,
                 }
                 if (config.mongoose.enabled) {
@@ -276,9 +302,10 @@ class WhatsAppInstance {
             }
 
             if (qr) {
-                QRCode.toDataURL(qr).then((url) => {
+                QRCode.toDataURL(qr).then(async (url) => {
                     this.instance.qr = url
                     this.instance.qrRetry++
+                    await this.SendQrWebhook('qrcode', url)
                     if (this.instance.qrRetry >= config.instance.maxRetryQr) {
                         // close WebSocket connection
                         this.instance.sock.ws.close()
