@@ -264,9 +264,11 @@ class WhatsAppInstance {
                     this.instance.online = false
                 }
 
-                await this.SendWebhook('connection', {
-                    connection: connection,
-                })
+                const allowWebhook = false
+                if (allowWebhook)
+                    await this.SendWebhook('connection', {
+                        connection: connection,
+                    })
             } else if (connection === 'open') {
                 const chatConfig = {
                     allowWebhook: this.allowWebhook ? true : false,
@@ -294,10 +296,11 @@ class WhatsAppInstance {
                     }
                 }
                 this.instance.online = true
-
-                await this.SendWebhook('connection', {
-                    connection: connection,
-                })
+                const allowWebhook = false
+                if(allowWebhook)
+                    await this.SendWebhook('connection', {
+                        connection: connection,
+                    })
             }
 
             if (qr) {
